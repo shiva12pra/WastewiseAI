@@ -2,12 +2,13 @@
 // WasteWiseAI — Live Map (Leaflet + Light Tiles)
 // ==========================================
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { Bin, Truck, RouteRecommendation } from '../types';
 import { getRouteCoordinates } from '../utils/routeOptimization';
 import { getTimeToThreshold } from '../utils/riskScoring';
+import { formatTruckId, formatTruckShort } from '../utils/truckDisplay';
 
 // Clean up default icon paths
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -22,12 +23,13 @@ interface LiveMapProps {
   trucks: Truck[];
   selectedBinId: string | null;
   onSelectBin: (id: string) => void;
+  onDispatchBin?: (id: string) => void;
   route: RouteRecommendation | null;
   height?: string;
   showLegend?: boolean;
 }
 
-function createBinIcon(priority: string, isSelected: boolean, fillLevel: number): L.DivIcon {
+function createBinIcon(priority: string, isSelected: boolean): L.DivIcon {
   const colors: Record<string, string> = {
     critical: '#DC2626', // Critical Red
     high: '#F59E0B',     // Warning Amber
@@ -35,9 +37,9 @@ function createBinIcon(priority: string, isSelected: boolean, fillLevel: number)
     normal: '#16A34A',   // Success Green
   };
   const color = colors[priority] || colors.normal;
-  const size = isSelected ? 20 : 14;
+  const size = isSelected ? 22 : 14;
   const border = isSelected ? '3px solid #17221B' : '2px solid #FFFFFF';
-  const shadow = isSelected ? '0 0 12px rgba(23, 107, 58, 0.6)' : '0 2px 5px rgba(0,0,0,0.2)';
+  const shadow = isSelected ? '0 0 14px rgba(23, 107, 58, 0.7)' : '0 2px 5px rgba(0,0,0,0.2)';
 
   return L.divIcon({
     className: 'custom-bin-icon',
@@ -56,6 +58,7 @@ function createBinIcon(priority: string, isSelected: boolean, fillLevel: number)
 }
 
 function createTruckIcon(truck: Truck): L.DivIcon {
+  const shortName = formatTruckShort(truck.id);
   const bgColor = truck.status === 'unavailable' ? '#64748B' :
     truck.status === 'recommended' ? '#176B3A' :
     truck.status === 'on-route' ? '#0284C7' :
@@ -65,19 +68,20 @@ function createTruckIcon(truck: Truck): L.DivIcon {
 
   return L.divIcon({
     className: 'custom-truck-icon',
-    html: `<div style="
-      display: flex; align-items: center; justify-content: center; gap: 4px;
+    html: `<div class="truck-map-pin" style="
+      display: flex; align-items: center; justify-content: center;
       background: ${bgColor};
-      color: #FFFFFF; font-size: 10px; font-weight: 700;
-      padding: 3px 8px; border-radius: 6px;
-      white-space: nowrap;
+      color: #FFFFFF; font-size: 11px; font-weight: 700;
+      width: 28px; height: 28px; border-radius: 50%;
       border: 2px solid #FFFFFF;
-      box-shadow: 0 3px 8px rgba(0,0,0,0.18);
-      font-family: 'Plus Jakarta Sans', sans-serif;
-      letter-spacing: 0.3px;
-    ">🚛 ${truck.id}</div>`,
-    iconSize: [74, 24],
-    iconAnchor: [37, 12],
+      box-shadow: 0 3px 8px rgba(0,0,0,0.25);
+      cursor: pointer; position: relative;
+    ">
+      <span>🚛</span>
+      <span class="truck-hover-pill">${shortName}</span>
+    </div>`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
   });
 }
 
@@ -100,6 +104,7 @@ export default function LiveMap({
   trucks,
   selectedBinId,
   onSelectBin,
+  onDispatchBin,
   route,
   height = '100%',
   showLegend = true,
@@ -110,6 +115,28 @@ export default function LiveMap({
   const flyToCenter: [number, number] = selectedBin
     ? [selectedBin.lat, selectedBin.lng]
     : mapCenter;
+
+  // Display only 3-4 collection trucks to avoid map congestion as requested in the audit
+  const displayedTrucks = useMemo(() => {
+    const routeTruck = route ? trucks.find(t => t.id === route.truckId) : null;
+    const activeList = trucks.filter(t => t.status === 'on-route' || t.status === 'recommended');
+    const pool = [
+      ...(routeTruck ? [routeTruck] : []),
+      ...activeList.filter(t => t.id !== routeTruck?.id),
+      ...trucks.filter(t => t.status === 'idle'),
+    ];
+
+    const seen = new Set<string>();
+    const result: Truck[] = [];
+    for (const t of pool) {
+      if (!seen.has(t.id)) {
+        seen.add(t.id);
+        result.push(t);
+        if (result.length >= 4) break;
+      }
+    }
+    return result;
+  }, [trucks, route]);
 
   const routeCoords = route
     ? getRouteCoordinates(
@@ -131,11 +158,11 @@ export default function LiveMap({
             <span className="legend-item"><span className="legend-dot" style={{ background: '#16A34A' }} />Normal</span>
             <span className="legend-item"><span className="legend-dot" style={{ background: '#F59E0B' }} />High</span>
             <span className="legend-item"><span className="legend-dot" style={{ background: '#DC2626' }} />Critical</span>
-            <span className="legend-item"><span className="legend-dot legend-dot-truck" style={{ background: '#0284C7' }} />Fleet Units</span>
+            <span className="legend-item"><span className="legend-dot legend-dot-truck" style={{ background: '#0284C7' }} />Fleet (4 Active)</span>
             {route && (
               <span className="legend-item">
                 <span className="legend-line" style={{ background: '#176B3A' }} />
-                AI Route
+                AI Dispatch Route
               </span>
             )}
           </div>
@@ -147,12 +174,11 @@ export default function LiveMap({
         zoom={14}
         className="leaflet-map"
         zoomControl={false}
-        attributionControl={false}
       >
-        {/* Clean Voyager tiles without attribution / API key watermark */}
+        {/* OpenStreetMap Standard Tiles — No API Key Required */}
         <TileLayer
-          attribution=""
-          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           maxZoom={19}
         />
         <MapUpdater center={flyToCenter} />
@@ -162,7 +188,7 @@ export default function LiveMap({
           <Marker
             key={bin.id}
             position={[bin.lat, bin.lng]}
-            icon={createBinIcon(bin.priority, bin.id === selectedBinId, bin.fillLevel)}
+            icon={createBinIcon(bin.priority, bin.id === selectedBinId)}
             eventHandlers={{
               click: () => onSelectBin(bin.id),
             }}
@@ -173,10 +199,10 @@ export default function LiveMap({
                   <strong>{bin.id}</strong>
                   <span className={`priority-badge priority-${bin.priority}`}>{bin.priority.toUpperCase()}</span>
                 </div>
-                <div className="popup-location">{bin.location} • {bin.zoneType}</div>
+                <div className="popup-location">{bin.location} • {bin.zoneType} District</div>
                 <div className="popup-grid">
                   <div className="popup-stat">
-                    <span className="popup-stat-label">Fill</span>
+                    <span className="popup-stat-label">Current Fill</span>
                     <span className="popup-stat-value">{bin.fillLevel}%</span>
                   </div>
                   <div className="popup-stat">
@@ -184,27 +210,40 @@ export default function LiveMap({
                     <span className="popup-stat-value">+{bin.fillRate}%/h</span>
                   </div>
                   <div className="popup-stat">
-                    <span className="popup-stat-label">Risk</span>
+                    <span className="popup-stat-label">Risk Index</span>
                     <span className="popup-stat-value">{bin.riskScore}/100</span>
                   </div>
                   <div className="popup-stat">
-                    <span className="popup-stat-label">ETA Overflow</span>
+                    <span className="popup-stat-label">ETA Critical</span>
                     <span className="popup-stat-value">{getTimeToThreshold(bin)}h</span>
                   </div>
                 </div>
-                <button
-                  className="popup-action-btn"
-                  onClick={() => onSelectBin(bin.id)}
-                >
-                  Inspect Telemetry
-                </button>
+
+                <div className="popup-btn-row" style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
+                  {onDispatchBin && (
+                    <button
+                      className="popup-action-btn"
+                      onClick={() => onDispatchBin(bin.id)}
+                      style={{ background: '#176B3A', color: '#FFFFFF', flex: 1 }}
+                    >
+                      ⚡ Quick Dispatch
+                    </button>
+                  )}
+                  <button
+                    className="popup-action-btn"
+                    onClick={() => onSelectBin(bin.id)}
+                    style={{ background: '#F1F5F9', color: '#334155', flex: 1 }}
+                  >
+                    Inspect
+                  </button>
+                </div>
               </div>
             </Popup>
           </Marker>
         ))}
 
-        {/* Truck markers */}
-        {trucks.map(truck => (
+        {/* Selected 3-4 collection trucks on map with non-overlapping hover pins */}
+        {displayedTrucks.map(truck => (
           <Marker
             key={truck.id}
             position={[truck.lat, truck.lng]}
@@ -213,15 +252,15 @@ export default function LiveMap({
             <Popup className="bin-popup">
               <div className="popup-content">
                 <div className="popup-header">
-                  <strong>{truck.id} ({truck.name})</strong>
+                  <strong>{formatTruckId(truck.id)}</strong>
                   <span className={`status-badge status-${truck.status}`}>{truck.status.toUpperCase()}</span>
                 </div>
                 <div className="popup-location">
-                  Municipal Collection Vehicle • {truck.id}
+                  Municipal Collection Unit • {formatTruckId(truck.id)}
                 </div>
                 <div className="popup-grid">
                   <div className="popup-stat">
-                    <span className="popup-stat-label">Energy Level</span>
+                    <span className="popup-stat-label">Energy / Fuel Reserve</span>
                     <span className="popup-stat-value">{truck.battery}%</span>
                   </div>
                   <div className="popup-stat">
@@ -230,7 +269,7 @@ export default function LiveMap({
                   </div>
                 </div>
                 {truck.assignedRoute && (
-                  <div className="popup-route-tag">Assigned: {truck.assignedRoute}</div>
+                  <div className="popup-route-tag">Assigned Route: {truck.assignedRoute}</div>
                 )}
               </div>
             </Popup>
@@ -244,7 +283,7 @@ export default function LiveMap({
             pathOptions={{
               color: '#176B3A',
               weight: 5,
-              opacity: 0.9,
+              opacity: 0.95,
               dashArray: '8, 6',
               lineCap: 'round',
             }}

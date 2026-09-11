@@ -5,22 +5,25 @@
 import { useState } from 'react';
 import {
   Bell,
-  CheckCircle2,
   AlertTriangle,
   Search,
   User,
-  SlidersHorizontal,
   X,
   MapPin,
   Truck,
+  CheckCircle,
+  Info,
+  AlertCircle,
 } from 'lucide-react';
-import { ScenarioType, Bin, Truck as TruckType } from '../types';
+import { ScenarioType, Bin, Truck as TruckType, EventLog } from '../types';
+import { formatTruckId } from '../utils/truckDisplay';
 
 interface HeaderProps {
   activeNav: string;
   activeScenario: ScenarioType;
   bins: Bin[];
   trucks: TruckType[];
+  events?: EventLog[];
   onSelectBin: (id: string) => void;
   onNavigate: (nav: string) => void;
 }
@@ -28,11 +31,11 @@ interface HeaderProps {
 const navTitles: Record<string, { title: string; subtitle: string }> = {
   overview: {
     title: 'Command Center Overview',
-    subtitle: 'Municipal Waste Management & Smart City Telemetry',
+    subtitle: 'Municipal Waste Management & Smart City Geospatial Telemetry',
   },
   'live-ops': {
     title: 'Live Operations Map',
-    subtitle: 'Real-time Bin Levels, Truck Telemetry & On-Demand Actions',
+    subtitle: 'Real-time Bin Levels, Fleet Telemetry & On-Demand Actions',
   },
   predictions: {
     title: 'AI Bin Fill Predictions',
@@ -61,6 +64,7 @@ export default function Header({
   activeScenario,
   bins,
   trucks,
+  events = [],
   onSelectBin,
   onNavigate,
 }: HeaderProps) {
@@ -83,15 +87,15 @@ export default function Header({
       .filter(
         t =>
           t.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          t.name.toLowerCase().includes(searchQuery.toLowerCase())
+          formatTruckId(t.id).toLowerCase().includes(searchQuery.toLowerCase())
       )
       .slice(0, 3)
-      .map(t => ({ type: 'truck' as const, id: t.id, title: t.id, subtitle: `Unit ${t.id} • ${t.status}` })),
+      .map(t => ({ type: 'truck' as const, id: t.id, title: formatTruckId(t.id), subtitle: `Status: ${t.status} • Reserve: ${t.battery}%` })),
   ];
 
   return (
     <header className="header">
-      {/* Left: Section Title & Breadcrumb */}
+      {/* Left: Section Title, Subtitle & Breadcrumb */}
       <div className="header-left">
         <div className="header-breadcrumb">
           <span className="breadcrumb-root">WasteWiseAI</span>
@@ -100,6 +104,9 @@ export default function Header({
         </div>
         <div className="header-title-row">
           <h1 className="header-title">{currentNav.title}</h1>
+          <span className="header-subtitle-text" style={{ fontSize: '11px', color: '#64748B', marginLeft: '8px' }}>
+            • {currentNav.subtitle}
+          </span>
           {activeScenario !== 'normal' && (
             <span className="header-scenario-badge">
               <AlertTriangle size={12} />
@@ -116,7 +123,7 @@ export default function Header({
           <input
             type="text"
             className="header-search-input"
-            placeholder="Search bin, truck or location..."
+            placeholder="Search bin, collection vehicle or location..."
             value={searchQuery}
             onChange={e => {
               setSearchQuery(e.target.value);
@@ -193,7 +200,7 @@ export default function Header({
           <button
             className="header-icon-btn"
             onClick={() => setShowNotifications(!showNotifications)}
-            title="System Notifications"
+            title="Operational Alerts"
             id="notifications-btn"
           >
             <Bell size={18} />
@@ -204,30 +211,21 @@ export default function Header({
             <div className="notifications-dropdown">
               <div className="notif-header">
                 <span>Operational Alerts</span>
-                <span className="notif-count">3 New</span>
+                <span className="notif-count">{Math.min(events.length, 5)} Recent</span>
               </div>
               <div className="notif-list">
-                <div className="notif-item unread">
-                  <div className="notif-dot red" />
-                  <div className="notif-content">
-                    <p className="notif-msg">BIN-104 (Market Street) reached 91% capacity.</p>
-                    <span className="notif-time">3m ago</span>
-                  </div>
-                </div>
-                <div className="notif-item unread">
-                  <div className="notif-dot amber" />
-                  <div className="notif-content">
-                    <p className="notif-msg">EV-04 reached 82% load capacity on Route C.</p>
-                    <span className="notif-time">14m ago</span>
-                  </div>
-                </div>
-                <div className="notif-item">
-                  <div className="notif-dot green" />
-                  <div className="notif-content">
-                    <p className="notif-msg">EV-03 completed battery top-up to 92%.</p>
-                    <span className="notif-time">28m ago</span>
-                  </div>
-                </div>
+                {events.slice(0, 5).map(evt => {
+                  const dotColor = evt.type === 'critical' ? '#DC2626' : evt.type === 'warning' ? '#F59E0B' : evt.type === 'success' ? '#16A34A' : '#0284C7';
+                  return (
+                    <div key={evt.id} className="notif-item">
+                      <div className="notif-dot" style={{ background: dotColor }} />
+                      <div className="notif-content">
+                        <p className="notif-msg">{evt.message}</p>
+                        <span className="notif-time">{evt.timestamp}</span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

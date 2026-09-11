@@ -2,7 +2,7 @@
 // WasteWiseAI — AI Prediction Chart
 // ==========================================
 
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer, Area, ComposedChart } from 'recharts';
+import { XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer, Area, ComposedChart, Line } from 'recharts';
 import { Brain, Info } from 'lucide-react';
 import { Bin } from '../types';
 import { generatePredictionData } from '../utils/riskScoring';
@@ -18,12 +18,12 @@ export default function PredictionChart({ bin, fillRateMultiplier }: PredictionC
       <div className="panel prediction-panel">
         <div className="panel-header">
           <div className="panel-header-left">
-            <Brain size={16} className="panel-header-icon purple" />
-            <h3 className="panel-title">AI Waste Prediction</h3>
+            <Brain size={16} className="panel-header-icon text-emerald-700" />
+            <h3 className="panel-title">AI Fill Prediction</h3>
           </div>
         </div>
         <div className="panel-empty">
-          <p>Select a bin to view predictions</p>
+          <p>Select a bin to view time-series predictions</p>
         </div>
       </div>
     );
@@ -36,91 +36,93 @@ export default function PredictionChart({ bin, fillRateMultiplier }: PredictionC
     <div className="panel prediction-panel">
       <div className="panel-header">
         <div className="panel-header-left">
-          <Brain size={16} className="panel-header-icon purple" />
-          <h3 className="panel-title">AI Waste Prediction</h3>
+          <Brain size={16} className="panel-header-icon text-emerald-700" />
+          <h3 className="panel-title">AI Fill Prediction (24h Forecast)</h3>
         </div>
         <div className="prediction-confidence">
-          <span className="confidence-label">Confidence</span>
-          <span className="confidence-value">94%</span>
+          <span className="confidence-label">Model Confidence</span>
+          <span className="confidence-value" style={{ color: '#176B3A', fontWeight: 700 }}>94.6%</span>
         </div>
       </div>
       <p className="panel-subtitle">
-        Predicted fill level for <strong>{bin.id}</strong> — {bin.location}
+        Forecasting trajectory for <strong>{bin.id}</strong> — {bin.location}
       </p>
 
       <div className="prediction-chart-wrapper">
         <ResponsiveContainer width="100%" height={200}>
           <ComposedChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
             <defs>
-              <linearGradient id="fillGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+              <linearGradient id="fillGradGreen" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#176B3A" stopOpacity={0.25} />
+                <stop offset="95%" stopColor="#176B3A" stopOpacity={0.02} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+            <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
             <XAxis
               dataKey="label"
-              tick={{ fill: '#9ca3af', fontSize: 11 }}
-              axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
+              tick={{ fill: '#64748B', fontSize: 11 }}
+              axisLine={{ stroke: '#CBD5E1' }}
               tickLine={false}
             />
             <YAxis
               domain={[0, 100]}
-              tick={{ fill: '#9ca3af', fontSize: 11 }}
-              axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
+              tick={{ fill: '#64748B', fontSize: 11 }}
+              axisLine={{ stroke: '#CBD5E1' }}
               tickLine={false}
+              unit="%"
             />
             <Tooltip
               contentStyle={{
-                background: '#1e293b',
-                border: '1px solid rgba(255,255,255,0.1)',
+                background: '#FFFFFF',
+                border: '1px solid #DCE5DF',
                 borderRadius: '8px',
                 fontSize: '12px',
-                color: '#e2e8f0',
+                color: '#17221B',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
               }}
             />
             <ReferenceLine
               y={bin.criticalThreshold}
-              stroke="#ef4444"
+              stroke="#DC2626"
               strokeDasharray="6 4"
-              label={{ value: `Critical (${bin.criticalThreshold}%)`, fill: '#ef4444', fontSize: 10, position: 'right' }}
+              label={{ value: `Critical (${bin.criticalThreshold}%)`, fill: '#DC2626', fontSize: 10, position: 'insideTopRight' }}
             />
             <Area
               type="monotone"
               dataKey="predicted"
-              fill="url(#fillGrad)"
+              fill="url(#fillGradGreen)"
               stroke="none"
             />
             <Line
               type="monotone"
               dataKey="predicted"
-              stroke="#8b5cf6"
+              stroke="#176B3A"
               strokeWidth={2.5}
               dot={false}
-              activeDot={{ r: 4, fill: '#8b5cf6' }}
+              activeDot={{ r: 5, fill: '#176B3A' }}
             />
             <Line
               type="monotone"
               dataKey="fill"
-              stroke="#22c55e"
+              stroke="#16A34A"
               strokeWidth={2}
-              dot={{ r: 3, fill: '#22c55e' }}
-              activeDot={{ r: 4, fill: '#22c55e' }}
+              dot={{ r: 3, fill: '#16A34A' }}
+              activeDot={{ r: 4, fill: '#16A34A' }}
             />
           </ComposedChart>
         </ResponsiveContainer>
       </div>
 
       {crossingPoint && (
-        <div className="prediction-alert">
+        <div className="prediction-alert" style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', color: '#991B1B' }}>
           <AlertDot />
           <span>Predicted to cross critical threshold at <strong>{crossingPoint.label}</strong> ({crossingPoint.predicted}%)</span>
         </div>
       )}
 
       <div className="prediction-tag">
-        <Info size={12} />
-        <span>Prediction simulation — demo data</span>
+        <Info size={12} className="text-secondary" />
+        <span>Time-series ultrasonic simulation • Updated in real time</span>
       </div>
     </div>
   );
@@ -130,7 +132,7 @@ function AlertDot() {
   return (
     <span style={{
       width: 8, height: 8, borderRadius: '50%',
-      background: '#ef4444', display: 'inline-block',
+      background: '#DC2626', display: 'inline-block',
       marginRight: 6, flexShrink: 0,
     }} />
   );

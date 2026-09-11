@@ -4,39 +4,40 @@
 
 import { Truck as TruckIcon, Battery, Package } from 'lucide-react';
 import { Truck } from '../types';
+import { formatTruckId } from '../utils/truckDisplay';
 
 interface FleetPanelProps {
   trucks: Truck[];
 }
 
 export default function FleetPanel({ trucks }: FleetPanelProps) {
-  const primaryTrucks = trucks.slice(0, 6);
-  const secondaryTrucks = trucks.slice(6, 12);
+  const activeTrucks = trucks.filter(t => t.status === 'on-route' || t.status === 'recommended');
+  const standbyTrucks = trucks.filter(t => t.status !== 'on-route' && t.status !== 'recommended');
 
   return (
     <div className="panel fleet-panel">
       <div className="panel-header">
         <div className="panel-header-left">
           <TruckIcon size={16} className="text-emerald-700" />
-          <h3 className="panel-title">Fleet Status</h3>
+          <h3 className="panel-title">Collection Fleet Status</h3>
         </div>
-        <span className="panel-count">{trucks.length} Units</span>
+        <span className="panel-count">{trucks.length} Municipal Units</span>
       </div>
 
       <div className="fleet-section-label">
-        <TruckIcon size={12} /> Primary Operations Fleet
+        <TruckIcon size={12} /> Active Dispatched Units ({activeTrucks.length})
       </div>
       <div className="fleet-grid">
-        {primaryTrucks.map(truck => (
+        {activeTrucks.map(truck => (
           <TruckCard key={truck.id} truck={truck} />
         ))}
       </div>
 
       <div className="fleet-section-label">
-        <TruckIcon size={12} /> Support & Reserve Fleet
+        <TruckIcon size={12} /> Standby & Reserve Fleet ({standbyTrucks.length})
       </div>
       <div className="fleet-grid">
-        {secondaryTrucks.map(truck => (
+        {standbyTrucks.slice(0, 6).map(truck => (
           <TruckCard key={truck.id} truck={truck} />
         ))}
       </div>
@@ -57,13 +58,16 @@ function TruckCard({ truck }: { truck: Truck }) {
     'unavailable': 'var(--text-dim)',
   };
 
+  const displayName = formatTruckId(truck.id);
+
   return (
     <div className={`truck-card ${truck.status === 'unavailable' ? 'truck-unavailable' : ''}`}>
       <div className="truck-card-header">
-        <span className="truck-id">{truck.id}</span>
+        <span className="truck-id">{displayName}</span>
         <span
           className="truck-status-dot"
           style={{ background: statusColors[truck.status] || '#64748B' }}
+          title={truck.status}
         />
       </div>
 
@@ -75,7 +79,7 @@ function TruckCard({ truck }: { truck: Truck }) {
           />
         </div>
         <span className="truck-battery-label">
-          <Battery size={11} /> Energy: {truck.battery}%
+          <Battery size={11} /> Energy Reserve: {truck.battery}%
         </span>
       </div>
 
@@ -90,7 +94,7 @@ function TruckCard({ truck }: { truck: Truck }) {
           />
         </div>
         <span className="truck-load-label">
-          <Package size={11} /> Load: {truck.load}%
+          <Package size={11} /> Payload: {truck.load}%
         </span>
       </div>
 

@@ -12,9 +12,9 @@ interface KpiCardsProps {
 export default function KpiCards({ kpis }: KpiCardsProps) {
   const cards = [
     {
-      label: 'Total Bins',
+      label: 'Total Monitored Bins',
       value: kpis.totalBins.toLocaleString(),
-      sub: '+4.2%',
+      sub: 'Ultrasonic IoT grid active',
       icon: Package,
       color: 'var(--accent-blue)',
       trend: 'up' as const,
@@ -22,15 +22,15 @@ export default function KpiCards({ kpis }: KpiCardsProps) {
     {
       label: 'Critical Bins',
       value: kpis.criticalBins.toString(),
-      sub: 'Needs Attention',
+      sub: 'Immediate dispatch required',
       icon: AlertTriangle,
       color: 'var(--accent-red)',
       trend: 'alert' as const,
     },
     {
-      label: 'Active Trucks',
+      label: 'Collection Fleet',
       value: `${kpis.activeTrucks} / ${kpis.totalTrucks}`,
-      sub: `${Math.round((kpis.activeTrucks / kpis.totalTrucks) * 100)}% active`,
+      sub: `${Math.round((kpis.activeTrucks / kpis.totalTrucks) * 100)}% deployed to routes`,
       icon: Truck,
       color: 'var(--accent-emerald)',
       trend: 'neutral' as const,
@@ -38,15 +38,15 @@ export default function KpiCards({ kpis }: KpiCardsProps) {
     {
       label: 'Collection Efficiency',
       value: `${kpis.collectionEfficiency}%`,
-      sub: '+8.4%',
+      sub: '+8.4% vs fixed schedule',
       icon: TrendingUp,
-      color: 'var(--accent-purple)',
+      color: 'var(--accent-primary)',
       trend: 'up' as const,
     },
     {
-      label: 'Route Saving',
+      label: 'Distance Saved',
       value: `${kpis.routeSaving} km`,
-      sub: 'vs fixed route',
+      sub: 'Dynamic optimization saving',
       icon: MapPin,
       color: 'var(--accent-amber)',
       trend: 'up' as const,
@@ -67,7 +67,6 @@ export default function KpiCards({ kpis }: KpiCardsProps) {
           <div className={`kpi-sub ${card.trend === 'alert' ? 'kpi-sub-alert' : card.trend === 'up' ? 'kpi-sub-up' : ''}`}>
             {card.sub}
           </div>
-          <div className="kpi-simulation-tag">Simulation</div>
         </div>
       ))}
     </div>

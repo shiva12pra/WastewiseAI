@@ -17,10 +17,10 @@ const typeIcons = {
 };
 
 const typeColors = {
-  critical: 'var(--accent-red)',
-  warning: 'var(--accent-amber)',
-  success: 'var(--accent-emerald)',
-  info: 'var(--accent-blue)',
+  critical: '#DC2626',
+  warning: '#F59E0B',
+  success: '#16A34A',
+  info: '#0284C7',
 };
 
 export default function EventFeed({ events }: EventFeedProps) {
@@ -28,21 +28,31 @@ export default function EventFeed({ events }: EventFeedProps) {
     <div className="panel event-feed-panel">
       <div className="panel-header">
         <div className="panel-header-left">
-          <Radio size={16} className="panel-header-icon blue" />
-          <h3 className="panel-title">Recent Events</h3>
+          <Radio size={16} className="panel-header-icon text-emerald-700" />
+          <h3 className="panel-title">Live Operational Activity Log</h3>
         </div>
         <span className="live-indicator">
           <span className="live-dot" />
-          Live
+          Synchronized
         </span>
       </div>
 
       <div className="event-list">
         {events.slice(0, 12).map(evt => {
           const Icon = typeIcons[evt.type];
+          const color = typeColors[evt.type] || '#0284C7';
           return (
-            <div key={evt.id} className="event-item">
-              <div className="event-icon" style={{ color: typeColors[evt.type] }}>
+            <div
+              key={evt.id}
+              className={`event-item event-item-${evt.type}`}
+              style={{
+                borderLeft: `3px solid ${color}`,
+                paddingLeft: '10px',
+                borderRadius: '0 6px 6px 0',
+                background: '#FAFBF9',
+              }}
+            >
+              <div className="event-icon" style={{ color }}>
                 <Icon size={13} />
               </div>
               <div className="event-content">
