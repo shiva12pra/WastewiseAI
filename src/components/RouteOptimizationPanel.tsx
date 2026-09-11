@@ -2,7 +2,7 @@
 // WasteWiseAI — Route Optimization Panel
 // ==========================================
 
-import { Route as RouteIcon, Play, MapPin, Clock, Battery, Package, Lightbulb, Info } from 'lucide-react';
+import { Route as RouteIcon, Play, MapPin, Clock, Layers, Package, Lightbulb, Info } from 'lucide-react';
 import { RouteRecommendation, Truck, Bin } from '../types';
 import { formatTruckId } from '../utils/truckDisplay';
 
@@ -63,7 +63,7 @@ export default function RouteOptimizationPanel({
             <div className="route-stat">
               <MapPin size={13} className="text-emerald-700" />
               <div>
-                <span className="route-stat-label">Distance</span>
+                <span className="route-stat-label">Route Distance</span>
                 <span className="route-stat-value">{route.estimatedDistance} km</span>
               </div>
             </div>
@@ -75,17 +75,17 @@ export default function RouteOptimizationPanel({
               </div>
             </div>
             <div className="route-stat">
-              <Package size={13} className="text-amber-600" />
+              <Layers size={13} className="text-emerald-700" />
               <div>
-                <span className="route-stat-label">Truck Load</span>
-                <span className="route-stat-value">{route.startLoad}% → {route.endLoad}%</span>
+                <span className="route-stat-label">Stops</span>
+                <span className="route-stat-value">{route.bins.length} priority bins</span>
               </div>
             </div>
             <div className="route-stat">
-              <Battery size={13} className="text-emerald-700" />
+              <Package size={13} className="text-amber-600" />
               <div>
-                <span className="route-stat-label">Energy Reserve</span>
-                <span className="route-stat-value">{route.startBattery}% → {route.endBattery}%</span>
+                <span className="route-stat-label">Vehicle Payload</span>
+                <span className="route-stat-value">{route.startLoad}% → {route.endLoad}%</span>
               </div>
             </div>
           </div>

@@ -9,7 +9,7 @@ import {
   XCircle,
   MapPin,
   Clock,
-  Battery,
+  Layers,
   Package,
   Sparkles,
   ShieldCheck,
@@ -102,16 +102,18 @@ export default function RouteOptimizationView({
                   </span>
                 </div>
 
-                {/* Key Route Metrics Grid */}
+                {/* Key Route Metrics Grid — 4 Vehicle-Neutral Dynamic Metric Cards */}
                 <div className="route-stats-4col">
+                  {/* 1. Route Distance */}
                   <div className="route-stat-box">
                     <span className="stat-label">
                       <MapPin size={13} /> Route Distance
                     </span>
                     <span className="stat-val">{route.estimatedDistance} km</span>
-                    <span className="stat-sub text-emerald-700">-28% vs fixed schedule</span>
+                    <span className="stat-sub text-emerald-700">-28% vs fixed route</span>
                   </div>
 
+                  {/* 2. Est. Time */}
                   <div className="route-stat-box">
                     <span className="stat-label">
                       <Clock size={13} /> Est. Time
@@ -120,16 +122,16 @@ export default function RouteOptimizationView({
                     <span className="stat-sub">Includes loading intervals</span>
                   </div>
 
+                  {/* 3. Stops (Vehicle-Neutral Replacement for Energy Reserve) */}
                   <div className="route-stat-box">
                     <span className="stat-label">
-                      <Battery size={13} /> Energy Reserve
+                      <Layers size={13} /> Stops
                     </span>
-                    <span className="stat-val">
-                      {route.startBattery}% → {route.endBattery}%
-                    </span>
-                    <span className="stat-sub text-emerald-700">~{route.startBattery - route.endBattery}% reserve used</span>
+                    <span className="stat-val">{route.bins.length} priority bins</span>
+                    <span className="stat-sub text-emerald-700">Critical-first route</span>
                   </div>
 
+                  {/* 4. Vehicle Payload */}
                   <div className="route-stat-box">
                     <span className="stat-label">
                       <Package size={13} /> Vehicle Payload
@@ -138,7 +140,7 @@ export default function RouteOptimizationView({
                       {route.startLoad}% → {route.endLoad}%
                     </span>
                     <span className="stat-sub">
-                      {route.endLoad <= 90 ? 'Safe capacity window' : 'Near capacity'}
+                      {route.endLoad <= 85 ? 'Safe capacity window' : 'Near capacity window'}
                     </span>
                   </div>
                 </div>
@@ -196,7 +198,7 @@ export default function RouteOptimizationView({
                     <div className="stop-marker start">DEPOT</div>
                     <div className="stop-details">
                       <div className="stop-name">Central Municipal Operations Depot</div>
-                      <div className="stop-sub">Departure with vehicle load at {route.startLoad}% • Energy Reserve {route.startBattery}%</div>
+                      <div className="stop-sub">Departure with vehicle load at {route.startLoad}% • Ready for collection dispatch</div>
                     </div>
                   </div>
 
@@ -232,7 +234,7 @@ export default function RouteOptimizationView({
                     <div className="stop-marker end">RETURN</div>
                     <div className="stop-details">
                       <div className="stop-name">Disposal Hub & Fleet Logistics Depot</div>
-                      <div className="stop-sub">Estimated final load: {route.endLoad}% • Final energy reserve: {route.endBattery}%</div>
+                      <div className="stop-sub">Estimated final load: {route.endLoad}% • Safe payload window maintained</div>
                     </div>
                   </div>
                 </div>
@@ -246,7 +248,7 @@ export default function RouteOptimizationView({
               </div>
               <h3 className="empty-state-title">No Active Optimized Route</h3>
               <p className="empty-state-desc">
-                Click <strong>"Generate Optimized Route"</strong> to trigger the multi-objective routing algorithm. The system evaluates real-time fill rates, vehicle capacities, and energy reserves to recommend the most urgent pickup sequence.
+                Click <strong>"Generate Optimized Route"</strong> to trigger the multi-objective routing algorithm. The system evaluates real-time fill rates, vehicle capacities, and collection priorities to recommend the most urgent pickup sequence.
               </p>
               <button className="btn-generate-route large" onClick={onGenerateRoute}>
                 <Play size={16} /> GENERATE OPTIMIZED ROUTE

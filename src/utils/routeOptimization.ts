@@ -2,7 +2,7 @@
 // WasteWiseAI — Route Optimization (Simulated)
 // ==========================================
 
-import { Bin, Truck, RouteRecommendation, Scenario } from '../types';
+import { Bin, Truck, RouteRecommendation, Scenario, ScenarioType } from '../types';
 import { formatTruckId } from './truckDisplay';
 
 /**
@@ -13,11 +13,12 @@ export function generateOptimizedRoute(
   bins: Bin[],
   trucks: Truck[],
   unavailableTruckId?: string,
-  targetBinId?: string
+  targetBinId?: string,
+  scenarioType: ScenarioType = 'normal'
 ): RouteRecommendation | null {
-  // Sort bins by risk score descending
+  // Select priority bins that need immediate or urgent collection
   let criticalBins = [...bins]
-    .filter(b => b.riskScore >= 60)
+    .filter(b => b.riskScore >= 55)
     .sort((a, b) => b.riskScore - a.riskScore);
 
   // If a specific target bin is designated (e.g. via Quick Dispatch), ensure it is first in line
@@ -28,10 +29,16 @@ export function generateOptimizedRoute(
     }
   }
 
-  const selectedStops = criticalBins.slice(0, 5);
+  // Scenario-specific stop count adaptation:
+  // - Festival: 5 priority stops (downtown / public event surge)
+  // - Traffic: 3 tight-cluster stops (mitigating congested cross-city transit)
+  // - Normal / Heavy-Rain / Failover: 4 priority stops
+  const targetStops = scenarioType === 'festival' ? 5 : scenarioType === 'traffic' ? 3 : 4;
+  const stopCount = Math.min(targetStops, Math.max(3, criticalBins.length));
+  const selectedStops = criticalBins.slice(0, stopCount);
   if (selectedStops.length === 0) return null;
 
-  // Find best truck: available, sufficient battery/fuel, lowest load
+  // Find best truck: available, lowest load, closest proximity
   const available = trucks.filter(t => {
     if (unavailableTruckId && t.id === unavailableTruckId) return false;
     if (t.status === 'charging' || t.status === 'near-capacity' || t.status === 'unavailable') return false;
@@ -42,37 +49,52 @@ export function generateOptimizedRoute(
 
   if (available.length === 0) return null;
 
-  // Score trucks: prefer lower load + higher battery + proximity to first bin
+  // Score trucks: lower current load + proximity to first pickup stop
   const scoredTrucks = available.map(truck => {
     const dist = haversine(truck.lat, truck.lng, selectedStops[0].lat, selectedStops[0].lng);
-    const batteryScore = truck.type === 'ev' ? truck.battery / 100 : 1;
     const loadScore = 1 - truck.load / 100;
     const proximityScore = 1 - Math.min(dist / 5, 1);
     return {
       truck,
-      score: batteryScore * 0.3 + loadScore * 0.4 + proximityScore * 0.3,
+      score: loadScore * 0.6 + proximityScore * 0.4,
     };
   });
 
   scoredTrucks.sort((a, b) => b.score - a.score);
   const bestTruck = scoredTrucks[0].truck;
 
-  // Build simple route using nearest-neighbor
+  // Build route sequence using nearest-neighbor optimization
   const routeBins = buildNearestNeighborRoute(bestTruck, selectedStops);
 
-  // Estimate distance and time
+  // Estimate distance and closed-loop route return
   const totalDistance = estimateRouteDistance(bestTruck, routeBins);
-  const estimatedTime = Math.round(totalDistance * 2.3); // ~2.3 min/km in city
-  const loadIncrease = routeBins.length * 4.5; // approx 4.5% load per bin
-  const batteryUsage = bestTruck.type === 'ev' ? Math.round(totalDistance * 0.8) : 0; // 0.8%/km for EV
+
+  // Transit time with scenario traffic factor
+  // Arterial transit speed: ~1.4 min/km baseline; +30% in traffic congestion; +15% in heavy rain
+  const transitSpeedFactor = scenarioType === 'traffic' ? 1.85 : scenarioType === 'heavy-rain' ? 1.6 : 1.4;
+  const travelTransitMin = totalDistance * transitSpeedFactor;
+  const loadingIntervalsMin = routeBins.length * 3.75;
+  const estimatedTime = Math.max(18, Math.round(travelTransitMin + loadingIntervalsMin));
+
+  // Vehicle payload: derived dynamically from collected waste volume from selected bins
+  // Standard municipal collection truck load increases by ~4.8% to ~5.5% per full municipal bin
+  // During festival / heavy-rain, bin density/weight increases by 20%
+  const wasteDensityFactor = scenarioType === 'festival' || scenarioType === 'heavy-rain' ? 1.2 : 1.0;
+  const addedPayloadPct = Math.round(
+    routeBins.reduce((sum, b) => sum + (b.fillLevel / 100) * 5.2 * wasteDensityFactor, 0)
+  );
+  const startLoad = bestTruck.load;
+  const endLoad = Math.min(100, startLoad + addedPayloadPct);
+
+  const batteryUsage = bestTruck.type === 'ev' ? Math.round(totalDistance * 0.7) : 0;
 
   return {
     truckId: bestTruck.id,
     bins: routeBins.map(b => b.id),
     estimatedDistance: parseFloat(totalDistance.toFixed(1)),
     estimatedTime,
-    startLoad: bestTruck.load,
-    endLoad: Math.min(100, Math.round(bestTruck.load + loadIncrease)),
+    startLoad,
+    endLoad,
     startBattery: bestTruck.battery,
     endBattery: Math.max(0, bestTruck.battery - batteryUsage),
     reasoning: generateRouteReasoning(bestTruck, routeBins, totalDistance),
@@ -110,14 +132,19 @@ function estimateRouteDistance(truck: Truck, bins: Bin[]): number {
   let prevLng = truck.lng;
 
   for (const bin of bins) {
-    // Multiply haversine by 1.3 to account for roads (not straight-line)
-    total += haversine(prevLat, prevLng, bin.lat, bin.lng) * 1.3;
+    // Multiply haversine by 1.35 to account for municipal urban road grid
+    total += haversine(prevLat, prevLng, bin.lat, bin.lng) * 1.35;
     prevLat = bin.lat;
     prevLng = bin.lng;
   }
 
-  // Ensure minimum realistic distance
-  return Math.max(total, 4 + bins.length * 2.5);
+  // Add return leg to Central Logistics Depot (12.9760, 77.5920)
+  if (bins.length > 0) {
+    total += haversine(prevLat, prevLng, 12.9760, 77.5920) * 1.35;
+  }
+
+  // Minimum realistic road distance for municipal collection tour
+  return Math.max(total, 5.0 + bins.length * 2.8);
 }
 
 function haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {

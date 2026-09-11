@@ -144,7 +144,7 @@ export function useAppState() {
 
   const generateRoute = useCallback(() => {
     const unavailableTruck = activeScenario === 'truck-unavailable' ? 'EV-02' : undefined;
-    const newRoute = generateOptimizedRoute(bins, trucks, unavailableTruck);
+    const newRoute = generateOptimizedRoute(bins, trucks, unavailableTruck, undefined, activeScenario);
 
     if (newRoute) {
       setRoute(newRoute);
@@ -169,7 +169,7 @@ export function useAppState() {
   const dispatchBin = useCallback((binId: string) => {
     setSelectedBinId(binId);
     const unavailableTruck = activeScenario === 'truck-unavailable' ? 'EV-02' : undefined;
-    const newRoute = generateOptimizedRoute(bins, trucks, unavailableTruck, binId);
+    const newRoute = generateOptimizedRoute(bins, trucks, unavailableTruck, binId, activeScenario);
 
     if (newRoute) {
       setRoute(newRoute);
