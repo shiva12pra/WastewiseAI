@@ -12,13 +12,11 @@ import {
   AlertTriangle,
   ArrowRight,
   RotateCcw,
-  Zap,
-  TrendingUp,
-  ShieldAlert,
   CheckCircle2,
 } from 'lucide-react';
 import { ScenarioType, Scenario, Bin, Truck } from '../types';
 import { scenariosData } from '../data/scenarios';
+import { formatTruckId } from '../utils/truckDisplay';
 
 interface ScenariosViewProps {
   activeScenario: ScenarioType;
@@ -49,7 +47,7 @@ const scenarioDetails: Record<
       'Normal 8-hour shift collection intervals',
       'Average of 4-6 critical bins at any time',
       'Municipal fleet operates within nominal energy discharge envelopes',
-      'Optimal traffic flow with predictable pickup delays',
+      'Optimal traffic flow with predictable pickup intervals',
     ],
     dispatchImpact: 'Default route optimization algorithm balances stops across available fleet.',
   },
@@ -64,7 +62,7 @@ const scenarioDetails: Record<
       'Critical bins count surges by +80%',
       'Pre-emptive routing automatically prioritizes commercial hubs before overflows occur',
     ],
-    dispatchImpact: 'System prioritizes maximum load collection units to high-throughput sectors.',
+    dispatchImpact: 'System prioritizes maximum payload collection units to high-throughput sectors.',
   },
   'heavy-rain': {
     icon: CloudRain,
@@ -74,7 +72,7 @@ const scenarioDetails: Record<
     consequences: [
       'Waste mass density increases; bins reach weight capacity before volume limit',
       'Low-lying bins near Lake View and Residency Rd risk street flooding',
-      'Truck transit speeds reduced from 35 km/h to 22 km/h',
+      'Vehicle transit speeds reduced from 35 km/h to 22 km/h',
       'Safety margins for vehicle traction on wet roadways enforced',
     ],
     dispatchImpact: 'Routes are rerouted along elevated arterial roads; stop count per run reduced by 15%.',
@@ -95,11 +93,11 @@ const scenarioDetails: Record<
   'truck-unavailable': {
     icon: Ban,
     color: '#DC2626',
-    badge: 'Unit EV-02 In Depot',
-    impactSummary: 'Primary heavy-duty vehicle EV-02 undergoes scheduled mechanical depot servicing.',
+    badge: 'Vehicle 02 In Depot',
+    impactSummary: 'Primary heavy-duty vehicle Truck 02 undergoes scheduled mechanical depot servicing.',
     consequences: [
-      'Fleet collection capacity drops by 12.5%',
-      'Unassigned routes originally slated for EV-02 must be dynamically absorbed',
+      'Fleet collection capacity temporarily adjusted',
+      'Unassigned routes originally slated for Truck 02 are dynamically absorbed',
       'Alternate fleet units automatically assigned redistributed stop queues',
       'High-risk bins served with zero disruption to civilian collection schedule',
     ],
@@ -117,6 +115,8 @@ export default function ScenariosView({
 }: ScenariosViewProps) {
   const currentDetail = scenarioDetails[activeScenario];
   const criticalCount = bins.filter(b => b.priority === 'critical' || b.priority === 'high').length;
+  const activeTruckCount = trucks.filter(t => t.status === 'on-route' || t.status === 'recommended').length;
+  const availableTruckCount = trucks.filter(t => t.status !== 'unavailable').length;
 
   return (
     <div className="scenarios-view">
@@ -127,7 +127,7 @@ export default function ScenariosView({
           <div>
             <h2 className="banner-title">Operational Scenario Simulator & Stress Engine</h2>
             <p className="banner-sub">
-              Simulate municipal contingencies, weather disruptions, and fleet failures to test WasteWiseAI’s dynamic response.
+              Simulate municipal contingencies, weather disruptions, and fleet failovers to test WasteWiseAI’s dynamic response.
             </p>
           </div>
         </div>
@@ -213,13 +213,13 @@ export default function ScenariosView({
             <span className="metric-num text-emerald-800">
               +{scenario.wasteGenerationIncrease}%
             </span>
-            <span className="metric-delta">Relative to 42.4 ton daily normal</span>
+            <span className="metric-delta">Relative to daily baseline</span>
           </div>
 
           <div className="impact-metric-box">
             <span className="metric-title">Active Fleet Required</span>
             <span className="metric-num text-blue-700">
-              {activeScenario === 'festival' ? '6 Trucks' : '4 Trucks'}
+              {activeScenario === 'festival' ? '6 Vehicles' : `${Math.max(4, activeTruckCount)} Vehicles`}
             </span>
             <span className="metric-delta">Demand-driven dispatching</span>
           </div>
@@ -227,10 +227,10 @@ export default function ScenariosView({
           <div className="impact-metric-box">
             <span className="metric-title">Fleet Availability</span>
             <span className={`metric-num ${activeScenario === 'truck-unavailable' ? 'text-red-600' : 'text-emerald-700'}`}>
-              {activeScenario === 'truck-unavailable' ? '11 / 12 (Unit EV-02 in Depot)' : '12 / 12 Units'}
+              {availableTruckCount} / {trucks.length} Units
             </span>
             <span className="metric-delta">
-              {activeScenario === 'truck-unavailable' ? 'Failover absorbed' : 'Full capacity available'}
+              {activeScenario === 'truck-unavailable' ? `${formatTruckId('EV-02')} in depot` : 'Full capacity available'}
             </span>
           </div>
         </div>

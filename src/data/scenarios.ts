@@ -36,7 +36,7 @@ export const scenariosData: Scenario[] = [
   {
     type: 'truck-unavailable',
     label: 'Truck Unavailable',
-    description: 'Primary vehicle EV-02 is down for depot maintenance — automated failover.',
+    description: 'Primary vehicle Truck 02 is down for depot maintenance — automated failover.',
     fillRateMultiplier: 1.0,
     wasteGenerationIncrease: 0,
   },

@@ -7,15 +7,10 @@ import {
   Truck as TruckIcon,
   Battery,
   Package,
-  CheckCircle,
-  AlertTriangle,
-  RotateCcw,
-  Clock,
-  MapPin,
   Filter,
-  ShieldCheck,
 } from 'lucide-react';
 import { Truck } from '../types';
+import { formatTruckId, getTruckModelName } from '../utils/truckDisplay';
 
 interface FleetViewProps {
   trucks: Truck[];
@@ -46,25 +41,25 @@ export default function FleetView({ trucks }: FleetViewProps) {
         <div className="fleet-kpi-card">
           <div className="fleet-kpi-label">Total Municipal Fleet</div>
           <div className="fleet-kpi-val">{trucks.length} Vehicles</div>
-          <div className="fleet-kpi-sub">12 Municipal Collection Units</div>
+          <div className="fleet-kpi-sub">Municipal Collection Fleet Units</div>
         </div>
 
         <div className="fleet-kpi-card">
           <div className="fleet-kpi-label">Active on Routes</div>
           <div className="fleet-kpi-val text-blue-700">{activeTrucks.length} Deployed</div>
-          <div className="fleet-kpi-sub">{Math.round((activeTrucks.length / trucks.length) * 100)}% active utilization</div>
+          <div className="fleet-kpi-sub">{Math.round((activeTrucks.length / trucks.length) * 100)}% active fleet deployment</div>
         </div>
 
         <div className="fleet-kpi-card">
-          <div className="fleet-kpi-label">Fleet Average Energy Reserve</div>
+          <div className="fleet-kpi-label">Average Fleet Energy Reserve</div>
           <div className="fleet-kpi-val text-emerald-800">{avgEnergy}%</div>
-          <div className="fleet-kpi-sub">Optimal operational reserve</div>
+          <div className="fleet-kpi-sub">Optimal operational reserve envelope</div>
         </div>
 
         <div className="fleet-kpi-card">
-          <div className="fleet-kpi-label">Fleet Readiness Rate</div>
+          <div className="fleet-kpi-label">Fleet Mission Readiness</div>
           <div className="fleet-kpi-val text-emerald-700">91.7%</div>
-          <div className="fleet-kpi-sub">11 of 12 units mission ready</div>
+          <div className="fleet-kpi-sub">11 of 12 units operational & ready</div>
         </div>
       </div>
 
@@ -116,7 +111,8 @@ export default function FleetView({ trucks }: FleetViewProps) {
         {filteredTrucks.map(truck => {
           const isLowEnergy = truck.battery < 30;
           const isNearCap = truck.load >= 80;
-          const modelName = truck.id.startsWith('EV') ? 'Municipal Compactor T-8' : 'Standard Urban Carrier C-4';
+          const displayName = formatTruckId(truck.id);
+          const modelName = getTruckModelName(truck);
 
           return (
             <div
@@ -131,7 +127,7 @@ export default function FleetView({ trucks }: FleetViewProps) {
                   </div>
                   <div>
                     <div className="vehicle-name-row">
-                      <span className="vehicle-id">{truck.id}</span>
+                      <span className="vehicle-id">{displayName}</span>
                       <span className="vehicle-model">{modelName}</span>
                     </div>
                     <span className="vehicle-assigned-route">
@@ -151,7 +147,7 @@ export default function FleetView({ trucks }: FleetViewProps) {
                 <div className="vehicle-metric-row">
                   <div className="metric-label-row">
                     <span className="metric-label">
-                      <Battery size={13} /> Energy Storage Level
+                      <Battery size={13} /> Operational Energy Reserve
                     </span>
                     <span className={`metric-val ${isLowEnergy ? 'text-red-600 font-bold' : ''}`}>
                       {truck.battery}%
@@ -197,7 +193,7 @@ export default function FleetView({ trucks }: FleetViewProps) {
                 {/* Technical Specs List */}
                 <div className="vehicle-specs-list">
                   <div className="spec-item">
-                    <span className="spec-k">GPS Position</span>
+                    <span className="spec-k">GPS Coordinates</span>
                     <span className="spec-v font-mono">{truck.lat.toFixed(4)}°N, {truck.lng.toFixed(4)}°E</span>
                   </div>
                   <div className="spec-item">
@@ -205,7 +201,7 @@ export default function FleetView({ trucks }: FleetViewProps) {
                     <span className="spec-v text-emerald-700">CAN-Bus Live • 2s sync</span>
                   </div>
                   <div className="spec-item">
-                    <span className="spec-k">Payload Cap</span>
+                    <span className="spec-k">Payload Capacity</span>
                     <span className="spec-v">2.4 Metric Tons</span>
                   </div>
                 </div>
@@ -229,10 +225,10 @@ export default function FleetView({ trucks }: FleetViewProps) {
           <table className="fleet-table">
             <thead>
               <tr>
-                <th>Vehicle ID</th>
+                <th>Vehicle Unit</th>
                 <th>Model Class</th>
-                <th>Energy Storage</th>
-                <th>Current Load</th>
+                <th>Energy Reserve</th>
+                <th>Current Payload</th>
                 <th>Operational Status</th>
                 <th>Assigned Route</th>
                 <th>Assigned Bins</th>
@@ -242,10 +238,10 @@ export default function FleetView({ trucks }: FleetViewProps) {
             <tbody>
               {filteredTrucks.map(truck => (
                 <tr key={truck.id}>
-                  <td className="font-bold text-dark">{truck.id}</td>
+                  <td className="font-bold text-dark">{formatTruckId(truck.id)}</td>
                   <td>
                     <span className="powertrain-tag ev">
-                      {truck.id.startsWith('EV') ? 'Compactor T-8' : 'Urban Carrier C-4'}
+                      {getTruckModelName(truck)}
                     </span>
                   </td>
                   <td>

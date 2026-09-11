@@ -27,6 +27,7 @@ export default function App() {
             selectedBin={state.selectedBin}
             selectedBinId={state.selectedBinId}
             onSelectBin={state.selectBin}
+            onDispatchBin={state.dispatchBin}
             route={state.route}
             routeApproved={state.routeApproved}
             onGenerateRoute={state.generateRoute}
@@ -36,6 +37,8 @@ export default function App() {
             scenario={state.scenario}
             onChangeScenario={state.changeScenario}
             events={state.events}
+            simulationActive={state.simulationActive}
+            onToggleSimulation={state.toggleSimulation}
           />
         );
 
@@ -47,6 +50,7 @@ export default function App() {
             selectedBinId={state.selectedBinId}
             selectedBin={state.selectedBin}
             onSelectBin={state.selectBin}
+            onDispatchBin={state.dispatchBin}
             route={state.route}
             events={state.events}
             onGenerateRoute={state.generateRoute}
@@ -77,6 +81,7 @@ export default function App() {
             onReject={state.rejectRoute}
             selectedBinId={state.selectedBinId}
             onSelectBin={state.selectBin}
+            onDispatchBin={state.dispatchBin}
           />
         );
 
@@ -102,6 +107,8 @@ export default function App() {
           <ImpactView
             route={state.route}
             trucks={state.trucks}
+            scenario={state.scenario}
+            bins={state.bins}
           />
         );
 
@@ -114,6 +121,7 @@ export default function App() {
             selectedBin={state.selectedBin}
             selectedBinId={state.selectedBinId}
             onSelectBin={state.selectBin}
+            onDispatchBin={state.dispatchBin}
             route={state.route}
             routeApproved={state.routeApproved}
             onGenerateRoute={state.generateRoute}
@@ -123,6 +131,8 @@ export default function App() {
             scenario={state.scenario}
             onChangeScenario={state.changeScenario}
             events={state.events}
+            simulationActive={state.simulationActive}
+            onToggleSimulation={state.toggleSimulation}
           />
         );
     }
@@ -135,6 +145,7 @@ export default function App() {
         activeNav={state.activeNav}
         setActiveNav={state.setActiveNav}
         criticalCount={state.kpis.criticalBins}
+        truckCount={state.trucks.length}
       />
 
       {/* Main Content Area */}
@@ -144,6 +155,7 @@ export default function App() {
           activeScenario={state.activeScenario}
           bins={state.bins}
           trucks={state.trucks}
+          events={state.events}
           onSelectBin={state.selectBin}
           onNavigate={state.setActiveNav}
         />

@@ -2,7 +2,8 @@
 // WasteWiseAI — Route Optimization (Simulated)
 // ==========================================
 
-import { Bin, Truck, RouteRecommendation } from '../types';
+import { Bin, Truck, RouteRecommendation, Scenario } from '../types';
+import { formatTruckId } from './truckDisplay';
 
 /**
  * Simple nearest-neighbor route builder.
@@ -11,17 +12,26 @@ import { Bin, Truck, RouteRecommendation } from '../types';
 export function generateOptimizedRoute(
   bins: Bin[],
   trucks: Truck[],
-  unavailableTruckId?: string
+  unavailableTruckId?: string,
+  targetBinId?: string
 ): RouteRecommendation | null {
   // Sort bins by risk score descending
-  const criticalBins = [...bins]
+  let criticalBins = [...bins]
     .filter(b => b.riskScore >= 60)
-    .sort((a, b) => b.riskScore - a.riskScore)
-    .slice(0, 5);
+    .sort((a, b) => b.riskScore - a.riskScore);
 
-  if (criticalBins.length === 0) return null;
+  // If a specific target bin is designated (e.g. via Quick Dispatch), ensure it is first in line
+  if (targetBinId) {
+    const target = bins.find(b => b.id === targetBinId);
+    if (target) {
+      criticalBins = [target, ...criticalBins.filter(b => b.id !== targetBinId)];
+    }
+  }
 
-  // Find best truck: available, sufficient battery, lowest load
+  const selectedStops = criticalBins.slice(0, 5);
+  if (selectedStops.length === 0) return null;
+
+  // Find best truck: available, sufficient battery/fuel, lowest load
   const available = trucks.filter(t => {
     if (unavailableTruckId && t.id === unavailableTruckId) return false;
     if (t.status === 'charging' || t.status === 'near-capacity' || t.status === 'unavailable') return false;
@@ -34,7 +44,7 @@ export function generateOptimizedRoute(
 
   // Score trucks: prefer lower load + higher battery + proximity to first bin
   const scoredTrucks = available.map(truck => {
-    const dist = haversine(truck.lat, truck.lng, criticalBins[0].lat, criticalBins[0].lng);
+    const dist = haversine(truck.lat, truck.lng, selectedStops[0].lat, selectedStops[0].lng);
     const batteryScore = truck.type === 'ev' ? truck.battery / 100 : 1;
     const loadScore = 1 - truck.load / 100;
     const proximityScore = 1 - Math.min(dist / 5, 1);
@@ -48,7 +58,7 @@ export function generateOptimizedRoute(
   const bestTruck = scoredTrucks[0].truck;
 
   // Build simple route using nearest-neighbor
-  const routeBins = buildNearestNeighborRoute(bestTruck, criticalBins);
+  const routeBins = buildNearestNeighborRoute(bestTruck, selectedStops);
 
   // Estimate distance and time
   const totalDistance = estimateRouteDistance(bestTruck, routeBins);
@@ -130,9 +140,7 @@ function generateRouteReasoning(truck: Truck, bins: Bin[], distance: number): st
 
   parts.push(`Serves ${bins.length} high-priority bins`);
   if (highRiskCount > 0) parts.push(`including ${highRiskCount} critical`);
-  if (truck.type === 'ev') {
-    parts.push(`using ${truck.id} with ${truck.battery}% battery`);
-  }
+  parts.push(`using ${formatTruckId(truck.id)} with optimal capacity reserve`);
   parts.push(`across ${distance.toFixed(1)} km`);
   if (medRiskCount > 0) parts.push('while consolidating nearby medium-risk bins');
   parts.push('to avoid additional collection trips');
@@ -166,12 +174,204 @@ export function getComparisonMetrics(route: RouteRecommendation, truck: Truck) {
   const fixedCO2 = isEV ? `${(fixedDistance * 0.05).toFixed(1)} kg` : `${(fixedDistance * 0.27).toFixed(1)} kg`;
   const optCO2 = isEV ? `${(route.estimatedDistance * 0.05).toFixed(1)} kg` : `${(route.estimatedDistance * 0.27).toFixed(1)} kg`;
 
+  const fixedCritical = Math.max(1, route.bins.length - 2);
+  const optCritical = route.bins.length;
+  const criticalDiff = Math.max(0, optCritical - fixedCritical);
+
   return [
-    { metric: 'Distance', fixed: `${fixedDistance} km`, optimized: `${route.estimatedDistance} km`, improvement: `${distReduction}%` },
+    { metric: 'Distance', fixed: `${fixedDistance} km`, optimized: `${route.estimatedDistance} km`, improvement: `-${distReduction}%` },
     { metric: 'Collection Trips', fixed: `${fixedTrips}`, optimized: `${optimizedTrips}`, improvement: `${fixedTrips - optimizedTrips} fewer` },
-    { metric: 'Critical Bins Served', fixed: `${Math.max(1, route.bins.length - 2)}`, optimized: `${route.bins.length}`, improvement: `+${Math.min(2, route.bins.length - 1)}` },
-    { metric: 'Estimated Time', fixed: `${fixedTime} min`, optimized: `${route.estimatedTime} min`, improvement: `${Math.round(((fixedTime - route.estimatedTime) / fixedTime) * 100)}%` },
-    { metric: isEV ? 'Energy Usage' : 'Fuel Usage', fixed: fixedEnergy, optimized: optEnergy, improvement: `${distReduction}%` },
-    { metric: 'Est. CO₂', fixed: fixedCO2, optimized: optCO2, improvement: `${distReduction}%` },
+    { metric: 'Critical Bins Served', fixed: `${fixedCritical}`, optimized: `${optCritical}`, improvement: `+${criticalDiff}` },
+    { metric: 'Estimated Time', fixed: `${fixedTime} min`, optimized: `${route.estimatedTime} min`, improvement: `-${Math.round(((fixedTime - route.estimatedTime) / fixedTime) * 100)}%` },
+    { metric: 'Fleet Energy / Fuel', fixed: fixedEnergy, optimized: optEnergy, improvement: `-${distReduction}%` },
+    { metric: 'Est. Scope 1 CO₂', fixed: fixedCO2, optimized: optCO2, improvement: `-${distReduction}%` },
   ];
+}
+
+export interface DynamicImpactData {
+  impactMetrics: {
+    metric: string;
+    category: string;
+    fixed: string;
+    optimized: string;
+    improvement: string;
+    isPositive: boolean;
+    fixedNum: number;
+    optNum: number;
+    unit: string;
+    notes: string;
+  }[];
+  chartData: {
+    name: string;
+    Fixed: number;
+    WasteWiseAI: number;
+  }[];
+  summary: {
+    distanceSavedKm: number;
+    distanceSavedPct: number;
+    co2SavedKg: number;
+    tripsReductionPct: number;
+    overflowPreventionPct: number;
+  };
+}
+
+/**
+ * Dynamically calculates simulated comparison between Traditional Fixed Route and WasteWiseAI
+ * based on the active scenario, current route recommendation, and fleet state.
+ */
+export function calculateImpactComparison(
+  route: RouteRecommendation | null,
+  scenario: Scenario,
+  trucks: Truck[]
+): DynamicImpactData {
+  const mult = scenario.fillRateMultiplier || 1.0;
+  const isTraffic = scenario.type === 'traffic';
+  const isRain = scenario.type === 'heavy-rain';
+
+  // Base distances in km
+  const baseFixedDist = Math.round(140 * mult * (isTraffic ? 1.1 : 1.0));
+  const baseOptDist = route
+    ? Math.round(route.estimatedDistance * 5.2 + (mult - 1) * 20)
+    : Math.round(89 * (1 + (mult - 1) * 0.4));
+
+  const distanceDiff = baseFixedDist - baseOptDist;
+  const distancePct = Math.round(((baseFixedDist - baseOptDist) / baseFixedDist) * 100);
+
+  // Trips
+  const fixedTrips = Math.round(8 * (mult > 1.2 ? 1.25 : 1.0));
+  const optTrips = route ? Math.max(3, Math.min(6, Math.ceil(route.bins.length * 0.8))) : 4;
+  const tripsReductionPct = Math.round(((fixedTrips - optTrips) / fixedTrips) * 100);
+
+  // Prevention rate
+  const fixedPrevention = mult > 1.4 ? 54.0 : 64.0;
+  const optPrevention = mult > 1.4 ? 96.5 : 98.5;
+
+  // Fleet utilization
+  const activeTruckCount = trucks.filter(t => t.status === 'on-route' || t.status === 'recommended').length;
+  const fleetUtilFixed = 48.0;
+  const fleetUtilOpt = Math.min(92.0, Math.round(76.0 + (activeTruckCount / (trucks.length || 1)) * 20));
+
+  // Time in hours
+  const timeFactor = isTraffic ? 1.35 : isRain ? 1.2 : 1.0;
+  const fixedHours = parseFloat((6.4 * mult * timeFactor).toFixed(1));
+  const optHours = parseFloat((4.1 * (1 + (mult - 1) * 0.35) * (isTraffic ? 1.15 : 1.0)).toFixed(1));
+  const timeSavedPct = Math.round(((fixedHours - optHours) / fixedHours) * 100);
+
+  // Energy in kWh equivalent
+  const fixedEnergy = Math.round(baseFixedDist * 0.82);
+  const optEnergy = Math.round(baseOptDist * 0.81);
+  const energySavedPct = Math.round(((fixedEnergy - optEnergy) / fixedEnergy) * 100);
+
+  // CO2 in kg
+  const fixedCO2 = parseFloat((baseFixedDist * 0.30).toFixed(1));
+  const optCO2 = parseFloat((baseOptDist * 0.205).toFixed(1));
+  const co2SavedKg = parseFloat((fixedCO2 - optCO2).toFixed(1));
+  const co2Pct = Math.round(((fixedCO2 - optCO2) / fixedCO2) * 100);
+
+  const impactMetrics = [
+    {
+      metric: 'Total Distance Travelled',
+      category: 'Operations',
+      fixed: `${baseFixedDist} km`,
+      optimized: `${baseOptDist} km`,
+      improvement: `-${distancePct}%`,
+      isPositive: true,
+      fixedNum: baseFixedDist,
+      optNum: baseOptDist,
+      unit: 'km',
+      notes: 'Eliminates redundant sweeps of low-fill residential sectors',
+    },
+    {
+      metric: 'Daily Collection Trips',
+      category: 'Operations',
+      fixed: `${fixedTrips} trips`,
+      optimized: `${optTrips} trips`,
+      improvement: `-${tripsReductionPct}%`,
+      isPositive: true,
+      fixedNum: fixedTrips,
+      optNum: optTrips,
+      unit: 'trips',
+      notes: 'Demand-driven consolidation into full payloads',
+    },
+    {
+      metric: 'Critical Bins Served Pre-Overflow',
+      category: 'Service Level',
+      fixed: `${fixedPrevention.toFixed(1)}%`,
+      optimized: `${optPrevention.toFixed(1)}%`,
+      improvement: `+${(optPrevention - fixedPrevention).toFixed(1)}%`,
+      isPositive: true,
+      fixedNum: fixedPrevention,
+      optNum: optPrevention,
+      unit: '%',
+      notes: 'Predictive alerts dispatch before citizen complaints or street overflow',
+    },
+    {
+      metric: 'Fleet Utilization Rate',
+      category: 'Fleet Logistics',
+      fixed: `${fleetUtilFixed.toFixed(1)}%`,
+      optimized: `${fleetUtilOpt.toFixed(1)}%`,
+      improvement: `+${(fleetUtilOpt - fleetUtilFixed).toFixed(1)}%`,
+      isPositive: true,
+      fixedNum: fleetUtilFixed,
+      optNum: fleetUtilOpt,
+      unit: '%',
+      notes: 'Payload-to-capacity alignment prevents empty collection sweeps',
+    },
+    {
+      metric: 'Total Collection Hours',
+      category: 'Operations',
+      fixed: `${fixedHours} hrs`,
+      optimized: `${optHours} hrs`,
+      improvement: `-${timeSavedPct}%`,
+      isPositive: true,
+      fixedNum: fixedHours,
+      optNum: optHours,
+      unit: 'hours',
+      notes: 'Optimized stop sequencing reduces travel lag and transit wait times',
+    },
+    {
+      metric: 'Estimated Fleet Energy Consumption',
+      category: 'Fleet Operations',
+      fixed: `${fixedEnergy} kWh eq`,
+      optimized: `${optEnergy} kWh eq`,
+      improvement: `-${energySavedPct}%`,
+      isPositive: true,
+      fixedNum: fixedEnergy,
+      optNum: optEnergy,
+      unit: 'kWh eq',
+      notes: 'Preserves vehicle operational range across full daily shifts',
+    },
+    {
+      metric: 'Estimated Scope 1 Direct CO₂',
+      category: 'Environmental',
+      fixed: `${fixedCO2} kg CO2e`,
+      optimized: `${optCO2} kg CO2e`,
+      improvement: `-${co2Pct}%`,
+      isPositive: true,
+      fixedNum: fixedCO2,
+      optNum: optCO2,
+      unit: 'kg CO2e',
+      notes: 'Combined priority routing and reduced total municipal kilometers',
+    },
+  ];
+
+  const chartData = [
+    { name: 'Distance (km)', Fixed: baseFixedDist, WasteWiseAI: baseOptDist },
+    { name: 'Trips (count × 10)', Fixed: fixedTrips * 10, WasteWiseAI: optTrips * 10 },
+    { name: 'Served Pre-Overflow (%)', Fixed: Math.round(fixedPrevention), WasteWiseAI: Math.round(optPrevention) },
+    { name: 'Fleet Utilization (%)', Fixed: Math.round(fleetUtilFixed), WasteWiseAI: Math.round(fleetUtilOpt) },
+    { name: 'Collection Time (hrs × 10)', Fixed: Math.round(fixedHours * 10), WasteWiseAI: Math.round(optHours * 10) },
+  ];
+
+  return {
+    impactMetrics,
+    chartData,
+    summary: {
+      distanceSavedKm: distanceDiff,
+      distanceSavedPct: distancePct,
+      co2SavedKg,
+      tripsReductionPct,
+      overflowPreventionPct: parseFloat((optPrevention - fixedPrevention).toFixed(1)),
+    },
+  };
 }

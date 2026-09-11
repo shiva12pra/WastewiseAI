@@ -2,7 +2,6 @@
 // WasteWiseAI — Route Optimization View
 // ==========================================
 
-import { useState } from 'react';
 import {
   Route as RouteIcon,
   Play,
@@ -13,15 +12,13 @@ import {
   Battery,
   Package,
   Sparkles,
-  Zap,
-  ArrowRight,
-  TrendingDown,
   ShieldCheck,
   Truck,
   RotateCcw,
 } from 'lucide-react';
 import LiveMap from '../components/LiveMap';
 import { RouteRecommendation, Truck as TruckType, Bin } from '../types';
+import { formatTruckId } from '../utils/truckDisplay';
 
 interface RouteOptimizationViewProps {
   route: RouteRecommendation | null;
@@ -33,6 +30,7 @@ interface RouteOptimizationViewProps {
   onReject: () => void;
   selectedBinId: string | null;
   onSelectBin: (id: string) => void;
+  onDispatchBin?: (id: string) => void;
 }
 
 export default function RouteOptimizationView({
@@ -45,8 +43,9 @@ export default function RouteOptimizationView({
   onReject,
   selectedBinId,
   onSelectBin,
+  onDispatchBin,
 }: RouteOptimizationViewProps) {
-  const routeTruck = route ? trucks.find(t => t.id === route.truckId) || trucks[0] : null;
+  const truckDisplayName = route ? formatTruckId(route.truckId) : '';
 
   return (
     <div className="routes-view">
@@ -59,7 +58,7 @@ export default function RouteOptimizationView({
           <div>
             <h2 className="optimizer-title">Demand-Driven Route Optimization Engine</h2>
             <p className="optimizer-subtitle">
-              Calculates dynamic multi-stop pickup paths serving high-risk overflowing bins with minimal battery drain.
+              Calculates dynamic multi-stop pickup paths serving high-risk overflowing bins with minimal travel distance and energy draw.
             </p>
           </div>
         </div>
@@ -87,9 +86,9 @@ export default function RouteOptimizationView({
                   <div className="panel-header-left">
                     <Truck size={18} className="text-emerald-700" />
                     <div>
-                      <h3 className="panel-title">Recommended Dispatch: {route.truckId}</h3>
+                      <h3 className="panel-title">Recommended Dispatch: {truckDisplayName}</h3>
                       <span className="panel-subtitle">
-                        Municipal Collection Unit ({route.truckId}) •{' '}
+                        Municipal Collection Unit ({truckDisplayName}) •{' '}
                         {routeApproved ? (
                           <strong className="text-emerald-700">Dispatched to Route</strong>
                         ) : (
@@ -118,22 +117,22 @@ export default function RouteOptimizationView({
                       <Clock size={13} /> Est. Time
                     </span>
                     <span className="stat-val">{route.estimatedTime} min</span>
-                    <span className="stat-sub">Includes load intervals</span>
+                    <span className="stat-sub">Includes loading intervals</span>
                   </div>
 
                   <div className="route-stat-box">
                     <span className="stat-label">
-                      <Battery size={13} /> Energy Consumption
+                      <Battery size={13} /> Energy Reserve
                     </span>
                     <span className="stat-val">
                       {route.startBattery}% → {route.endBattery}%
                     </span>
-                    <span className="stat-sub text-emerald-700">~{route.startBattery - route.endBattery}% energy used</span>
+                    <span className="stat-sub text-emerald-700">~{route.startBattery - route.endBattery}% reserve used</span>
                   </div>
 
                   <div className="route-stat-box">
                     <span className="stat-label">
-                      <Package size={13} /> Truck Load
+                      <Package size={13} /> Vehicle Payload
                     </span>
                     <span className="stat-val">
                       {route.startLoad}% → {route.endLoad}%
@@ -152,7 +151,7 @@ export default function RouteOptimizationView({
                   </div>
                   <p className="why-body">
                     {route.reasoning ||
-                      `Serves ${route.bins.length} high-risk bins across high-density zones while avoiding an additional redundant collection trip, saving an estimated 18.4 kWh equivalent of vehicle energy.`}
+                      `Serves ${route.bins.length} high-risk bins across prioritized zones while consolidating collection stops into a single run.`}
                   </p>
                 </div>
 
@@ -161,7 +160,7 @@ export default function RouteOptimizationView({
                   {!routeApproved ? (
                     <>
                       <button className="btn-approve-dispatch" onClick={onApprove}>
-                        <CheckCircle2 size={16} /> APPROVE & DISPATCH {route.truckId}
+                        <CheckCircle2 size={16} /> APPROVE & DISPATCH {truckDisplayName}
                       </button>
                       <button className="btn-reject-route" onClick={onReject}>
                         <XCircle size={16} /> Reject Route
@@ -171,7 +170,7 @@ export default function RouteOptimizationView({
                     <div className="route-dispatched-confirmation">
                       <ShieldCheck size={18} className="text-emerald-700" />
                       <span>
-                        Vehicle <strong>{route.truckId}</strong> is officially dispatched. Telemetry tracking active.
+                        Vehicle <strong>{truckDisplayName}</strong> is officially dispatched. Telemetry tracking active.
                       </span>
                       <button className="btn-secondary-reset ml-auto" onClick={onReject}>
                         <RotateCcw size={14} /> Re-plan Route
@@ -196,8 +195,8 @@ export default function RouteOptimizationView({
                   <div className="timeline-stop start">
                     <div className="stop-marker start">DEPOT</div>
                     <div className="stop-details">
-                      <div className="stop-name">Central Municipal Sanitation Depot</div>
-                      <div className="stop-sub">Departure with vehicle load at {route.startLoad}% • Energy Level {route.startBattery}%</div>
+                      <div className="stop-name">Central Municipal Operations Depot</div>
+                      <div className="stop-sub">Departure with vehicle load at {route.startLoad}% • Energy Reserve {route.startBattery}%</div>
                     </div>
                   </div>
 
@@ -247,7 +246,7 @@ export default function RouteOptimizationView({
               </div>
               <h3 className="empty-state-title">No Active Optimized Route</h3>
               <p className="empty-state-desc">
-                Click <strong>"Generate Optimized Route"</strong> to trigger the multi-objective routing algorithm. The system evaluates real-time fill rates, vehicle capacities, and battery levels to recommend the most urgent pickup sequence.
+                Click <strong>"Generate Optimized Route"</strong> to trigger the multi-objective routing algorithm. The system evaluates real-time fill rates, vehicle capacities, and energy reserves to recommend the most urgent pickup sequence.
               </p>
               <button className="btn-generate-route large" onClick={onGenerateRoute}>
                 <Play size={16} /> GENERATE OPTIMIZED ROUTE
@@ -276,6 +275,7 @@ export default function RouteOptimizationView({
                 trucks={trucks}
                 selectedBinId={selectedBinId}
                 onSelectBin={onSelectBin}
+                onDispatchBin={onDispatchBin}
                 route={route}
                 height="100%"
               />

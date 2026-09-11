@@ -90,16 +90,23 @@ input, select {
   font-family: inherit;
 }
 
-/* Hide Leaflet Attribution & Any API Key Watermarks */
-.leaflet-control-attribution,
-.leaflet-control-container .leaflet-control-attribution,
-.leaflet-bottom.leaflet-right {
-  display: none !important;
-  visibility: hidden !important;
-  opacity: 0 !important;
-  height: 0 !important;
-  width: 0 !important;
-  pointer-events: none !important;
+/* Leaflet Clean Attribution Styling */
+.leaflet-control-attribution {
+  font-size: 9px !important;
+  background: rgba(255, 255, 255, 0.75) !important;
+  backdrop-filter: blur(4px);
+  color: #64748B !important;
+  padding: 2px 6px !important;
+  border-radius: 4px 0 0 0 !important;
+}
+
+.leaflet-control-attribution a {
+  color: #176B3A !important;
+  text-decoration: none !important;
+}
+
+.leaflet-control-attribution a:hover {
+  text-decoration: underline !important;
 }
 
 /* ---- App Layout ---- */
@@ -1045,6 +1052,34 @@ input, select {
   height: 100%;
   min-height: 300px;
   z-index: 1;
+}
+
+/* OpenStreetMap Clean Operational Palette */
+.leaflet-tile-pane {
+  filter: contrast(0.96) saturate(0.85);
+}
+
+/* Truck Marker Clean Hover Style — No permanent clutter on map */
+.truck-map-pin .truck-hover-pill {
+  display: none;
+  position: absolute;
+  bottom: -22px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #17221B;
+  color: #FFFFFF;
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25);
+  z-index: 1000;
+}
+
+.truck-map-pin:hover .truck-hover-pill {
+  display: block;
 }
 
 /* Custom Leaflet Popups */

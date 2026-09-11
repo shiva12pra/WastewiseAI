@@ -4,25 +4,20 @@
 
 import { useState, useMemo } from 'react';
 import {
-  Radio,
   Filter,
-  AlertTriangle,
-  Clock,
-  Gauge,
-  TrendingUp,
   MapPin,
   Truck,
   CheckCircle2,
   Zap,
   Activity,
-  ArrowUpRight,
   Shield,
-  Layers,
+  Radio,
 } from 'lucide-react';
 import LiveMap from '../components/LiveMap';
 import EventFeed from '../components/EventFeed';
 import { Bin, Truck as TruckType, RouteRecommendation, EventLog } from '../types';
 import { getTimeToThreshold, getExplanation } from '../utils/riskScoring';
+import { formatTruckId } from '../utils/truckDisplay';
 
 interface LiveOperationsViewProps {
   bins: Bin[];
@@ -30,12 +25,12 @@ interface LiveOperationsViewProps {
   selectedBinId: string | null;
   selectedBin: Bin | null;
   onSelectBin: (id: string) => void;
+  onDispatchBin?: (id: string) => void;
   route: RouteRecommendation | null;
   events: EventLog[];
   onGenerateRoute: () => void;
   onApproveRoute: () => void;
   routeApproved: boolean;
-  onEmptyBin?: (id: string) => void;
 }
 
 type PriorityFilter = 'all' | 'critical' | 'high' | 'normal';
@@ -46,6 +41,7 @@ export default function LiveOperationsView({
   selectedBinId,
   selectedBin,
   onSelectBin,
+  onDispatchBin,
   route,
   events,
   onGenerateRoute,
@@ -74,6 +70,8 @@ export default function LiveOperationsView({
     high: bins.filter(b => b.priority === 'high').length,
     normal: bins.filter(b => b.priority === 'normal' || b.priority === 'medium').length,
   };
+
+  const assignedTruckLabel = route ? formatTruckId(route.truckId) : '';
 
   return (
     <div className="live-ops-view">
@@ -113,7 +111,7 @@ export default function LiveOperationsView({
           <div className="ops-fleet-status-pill">
             <Truck size={14} className="text-blue-600" />
             <span>
-              {trucks.filter(t => t.status === 'on-route').length} of {trucks.length} Trucks Deployed
+              {trucks.filter(t => t.status === 'on-route').length} of {trucks.length} Units Deployed
             </span>
           </div>
           {!route ? (
@@ -122,11 +120,11 @@ export default function LiveOperationsView({
             </button>
           ) : !routeApproved ? (
             <button className="btn-approve" onClick={onApproveRoute}>
-              <CheckCircle2 size={14} /> Confirm Dispatch ({route.truckId})
+              <CheckCircle2 size={14} /> Confirm Dispatch ({assignedTruckLabel})
             </button>
           ) : (
             <span className="status-dispatched-pill">
-              <CheckCircle2 size={13} /> {route.truckId} Active on Route
+              <CheckCircle2 size={13} /> {assignedTruckLabel} Active on Route
             </span>
           )}
         </div>
@@ -141,6 +139,7 @@ export default function LiveOperationsView({
             trucks={trucks}
             selectedBinId={selectedBinId}
             onSelectBin={onSelectBin}
+            onDispatchBin={onDispatchBin}
             route={route}
             height="100%"
           />
@@ -183,6 +182,33 @@ export default function LiveOperationsView({
                   <div className="risk-score-label">RISK INDEX</div>
                 </div>
               </div>
+
+              {/* Quick Dispatch CTA Button */}
+              {onDispatchBin && (
+                <div style={{ marginTop: '10px', marginBottom: '6px' }}>
+                  <button
+                    className="btn-quick-dispatch-action"
+                    onClick={() => onDispatchBin(activeBin.id)}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      padding: '8px 12px',
+                      background: '#176B3A',
+                      color: '#FFFFFF',
+                      borderRadius: '8px',
+                      fontWeight: 600,
+                      fontSize: '12px',
+                      boxShadow: '0 2px 6px rgba(23, 107, 58, 0.25)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Zap size={14} /> Expedite Collection for {activeBin.id}
+                  </button>
+                </div>
+              )}
 
               {/* Fill Gauge Progress Bar */}
               <div className="ops-fill-section">
@@ -266,9 +292,9 @@ export default function LiveOperationsView({
                 </p>
               </div>
 
-              {/* Quick Select from Critical List */}
+              {/* Quick Select from Priority Critical Bins */}
               <div className="ops-quick-select">
-                <div className="quick-select-title">Nearby Priority Bins:</div>
+                <div className="quick-select-title">Priority Critical Bins:</div>
                 <div className="quick-select-chips">
                   {bins
                     .filter(b => b.priority === 'critical' || b.priority === 'high')

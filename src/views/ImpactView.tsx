@@ -2,20 +2,14 @@
 // WasteWiseAI — Environmental & Operational Impact View
 // ==========================================
 
+import { useMemo } from 'react';
 import {
   TrendingUp,
   BarChart3,
-  Leaf,
   Zap,
-  Clock,
-  ShieldCheck,
-  AlertCircle,
-  Truck,
-  RotateCcw,
   Sparkles,
   Info,
   CheckCircle2,
-  Layers,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -27,110 +21,31 @@ import {
   Tooltip,
   Legend,
 } from 'recharts';
-import { RouteRecommendation, Truck as TruckType } from '../types';
+import { RouteRecommendation, Truck as TruckType, Scenario, Bin } from '../types';
+import { calculateImpactComparison } from '../utils/routeOptimization';
 
 interface ImpactViewProps {
   route: RouteRecommendation | null;
   trucks: TruckType[];
+  scenario?: Scenario;
+  bins?: Bin[];
 }
 
-export default function ImpactView({ route, trucks }: ImpactViewProps) {
-  // Simulated comparative metrics: Fixed Schedule vs WasteWiseAI
-  const impactMetrics = [
-    {
-      metric: 'Total Distance Travelled',
-      category: 'Operations',
-      fixed: '142 km',
-      optimized: '89 km',
-      improvement: '-37.3%',
-      isPositive: true,
-      fixedNum: 142,
-      optNum: 89,
-      unit: 'km',
-      notes: 'Eliminates trips to half-empty residential bins',
-    },
-    {
-      metric: 'Daily Collection Trips',
-      category: 'Operations',
-      fixed: '8 trips',
-      optimized: '4 trips',
-      improvement: '-50.0%',
-      isPositive: true,
-      fixedNum: 8,
-      optNum: 4,
-      unit: 'trips',
-      notes: 'Demand-driven consolidation into full payloads',
-    },
-    {
-      metric: 'Critical Bins Served Pre-Overflow',
-      category: 'Service Level',
-      fixed: '64.0%',
-      optimized: '98.5%',
-      improvement: '+34.5%',
-      isPositive: true,
-      fixedNum: 64,
-      optNum: 98.5,
-      unit: '%',
-      notes: 'Predictive alerts dispatch before citizen complaints',
-    },
-    {
-      metric: 'Fleet Utilization Rate',
-      category: 'Fleet',
-      fixed: '48.0%',
-      optimized: '86.0%',
-      improvement: '+38.0%',
-      isPositive: true,
-      fixedNum: 48,
-      optNum: 86,
-      unit: '%',
-      notes: 'Payload-to-capacity alignment prevents empty runs',
-    },
-    {
-      metric: 'Total Collection Hours',
-      category: 'Operations',
-      fixed: '6.4 hrs',
-      optimized: '4.1 hrs',
-      improvement: '-35.9%',
-      isPositive: true,
-      fixedNum: 6.4,
-      optNum: 4.1,
-      unit: 'hours',
-      notes: 'Optimized stop sequencing reduces travel lag',
-    },
-    {
-      metric: 'Estimated Energy Consumption',
-      category: 'Energy (Secondary)',
-      fixed: '114 kWh eq',
-      optimized: '72 kWh eq',
-      improvement: '-36.8%',
-      isPositive: true,
-      fixedNum: 114,
-      optNum: 72,
-      unit: 'kWh eq',
-      notes: 'Preserves vehicle operational range across full shifts',
-    },
-    {
-      metric: 'Estimated Scope 1 Direct CO2',
-      category: 'Emissions (Secondary)',
-      fixed: '42.6 kg CO2e',
-      optimized: '18.2 kg CO2e',
-      improvement: '-57.3%',
-      isPositive: true,
-      fixedNum: 42.6,
-      optNum: 18.2,
-      unit: 'kg CO2e',
-      notes: 'Combined priority routing and reduced total distance',
-    },
-  ];
-
-  // Bar chart dataset for primary operational comparison
-  const chartData = [
-    { name: 'Distance (km)', Fixed: 142, WasteWiseAI: 89 },
-    { name: 'Trips (count × 10)', Fixed: 80, WasteWiseAI: 40 },
-    { name: 'Served Pre-Overflow (%)', Fixed: 64, WasteWiseAI: 98.5 },
-    { name: 'Fleet Utilization (%)', Fixed: 48, WasteWiseAI: 86 },
-    { name: 'Collection Time (hrs × 10)', Fixed: 64, WasteWiseAI: 41 },
-  ];
+export default function ImpactView({
+  route,
+  trucks,
+  scenario = {
+    type: 'normal',
+    label: 'Normal Day',
+    description: 'Baseline municipal operations',
+    fillRateMultiplier: 1.0,
+    wasteGenerationIncrease: 0,
+  },
+}: ImpactViewProps) {
+  // Dynamically calculate simulated comparative metrics based on active route and scenario
+  const { impactMetrics, chartData, summary } = useMemo(() => {
+    return calculateImpactComparison(route, scenario, trucks);
+  }, [route, scenario, trucks]);
 
   return (
     <div className="impact-view">
@@ -138,19 +53,19 @@ export default function ImpactView({ route, trucks }: ImpactViewProps) {
       <div className="impact-simulation-banner">
         <div className="banner-left">
           <Info size={16} className="text-emerald-700" />
-          <span className="banner-title">Simulated & Estimated Operational Impact Metrics</span>
+          <span className="banner-title">Simulated Comparison: Traditional Fixed Route vs WasteWiseAI</span>
           <span className="banner-desc">
-            Comparative analysis based on 30-day municipal simulation data. Real-world savings depend on local traffic, seasonal variations, and terrain.
+            Comparative analysis recalculated dynamically based on current scenario ({scenario.label}) and route optimization state.
           </span>
         </div>
-        <span className="simulation-tag">SIMULATED METRICS</span>
+        <span className="simulation-tag">SIMULATED COMPARISON</span>
       </div>
 
       {/* Core Value Proposition Card: MONITOR -> PREDICT -> PRIORITIZE -> OPTIMIZE -> COLLECT */}
       <div className="core-value-chain-card">
         <div className="value-chain-header">
           <Sparkles size={16} className="text-emerald-700" />
-          <span className="value-chain-title">THE WASTEWAISEAI PARADIGM SHIFT</span>
+          <span className="value-chain-title">THE WASTEWISEAI PARADIGM SHIFT</span>
         </div>
         <p className="value-chain-subtitle">
           Municipal waste collection transitions from rigid fixed schedules to intelligent demand-driven logistics:
@@ -188,7 +103,7 @@ export default function ImpactView({ route, trucks }: ImpactViewProps) {
           <div className="chain-step">
             <div className="step-num">05</div>
             <div className="step-label">COLLECT</div>
-            <div className="step-desc">Targeted, zero-waste dispatch</div>
+            <div className="step-desc">Targeted, demand-driven dispatch</div>
           </div>
         </div>
 
@@ -200,34 +115,42 @@ export default function ImpactView({ route, trucks }: ImpactViewProps) {
         </div>
       </div>
 
-      {/* Top 4 Highlights Row */}
+      {/* Top 4 Highlights Row — Dynamically Computed */}
       <div className="impact-kpi-row">
         <div className="impact-kpi-card">
           <span className="kpi-tag text-emerald-700">SERVICE ACCURACY</span>
-          <div className="kpi-big-val text-emerald-800">98.5%</div>
+          <div className="kpi-big-val text-emerald-800">
+            {impactMetrics.find(m => m.metric.includes('Critical Bins'))?.optimized || '98.5%'}
+          </div>
           <div className="kpi-label">Critical Bins Collected Before Overflow</div>
-          <div className="kpi-comparison">vs 64.0% with Fixed Schedule (+34.5%)</div>
+          <div className="kpi-comparison">
+            vs {impactMetrics.find(m => m.metric.includes('Critical Bins'))?.fixed} with Fixed Route ({impactMetrics.find(m => m.metric.includes('Critical Bins'))?.improvement})
+          </div>
         </div>
 
         <div className="impact-kpi-card">
           <span className="kpi-tag text-blue-700">LOGISTIC REDUCTION</span>
-          <div className="kpi-big-val text-blue-800">-50%</div>
-          <div className="kpi-label">Fewer Unnecessary Truck Trips</div>
-          <div className="kpi-comparison">4 targeted runs vs 8 scheduled sweeps</div>
+          <div className="kpi-big-val text-blue-800">-{summary.tripsReductionPct}%</div>
+          <div className="kpi-label">Fewer Unnecessary Collection Sweeps</div>
+          <div className="kpi-comparison">
+            {impactMetrics.find(m => m.metric.includes('Trips'))?.optimized} vs {impactMetrics.find(m => m.metric.includes('Trips'))?.fixed}
+          </div>
         </div>
 
         <div className="impact-kpi-card">
           <span className="kpi-tag text-emerald-700">FLEET EFFICIENCY</span>
-          <div className="kpi-big-val text-emerald-800">86%</div>
+          <div className="kpi-big-val text-emerald-800">
+            {impactMetrics.find(m => m.metric.includes('Utilization'))?.optimized || '86%'}
+          </div>
           <div className="kpi-label">Average Vehicle Payload Utilization</div>
           <div className="kpi-comparison">Avoids driving 2.4-ton trucks half-empty</div>
         </div>
 
         <div className="impact-kpi-card">
-          <span className="kpi-tag text-amber-700">SECONDARY IMPACT</span>
-          <div className="kpi-big-val text-amber-700">-37%</div>
+          <span className="kpi-tag text-amber-700">EMISSIONS & DISTANCE</span>
+          <div className="kpi-big-val text-amber-700">-{summary.distanceSavedPct}%</div>
           <div className="kpi-label">Simulated Distance & Energy Saved</div>
-          <div className="kpi-comparison">Preserves fleet energy & cuts ~24 kg CO2e</div>
+          <div className="kpi-comparison">Cuts ~{summary.co2SavedKg} kg CO2e emissions</div>
         </div>
       </div>
 
@@ -239,8 +162,8 @@ export default function ImpactView({ route, trucks }: ImpactViewProps) {
             <div className="panel-header-left">
               <BarChart3 size={18} className="text-emerald-700" />
               <div>
-                <h3 className="panel-title">Operational Performance Comparison (Simulated)</h3>
-                <span className="panel-subtitle">Traditional Fixed Schedule vs WasteWiseAI Demand-Driven Dispatch</span>
+                <h3 className="panel-title">Operational Performance (Simulated Comparison)</h3>
+                <span className="panel-subtitle">Traditional Fixed Route vs WasteWiseAI Demand-Driven Dispatch</span>
               </div>
             </div>
           </div>
@@ -272,12 +195,12 @@ export default function ImpactView({ route, trucks }: ImpactViewProps) {
           </div>
         </div>
 
-        {/* Right: Fleet Energy Optimization Focus */}
+        {/* Right: Fleet Energy & Route Efficiency Focus */}
         <div className="panel ev-focus-panel">
           <div className="panel-header">
             <div className="panel-header-left">
               <Zap size={18} className="text-emerald-700" />
-              <h3 className="panel-title">Fleet Energy & Range Optimization</h3>
+              <h3 className="panel-title">Fleet Energy & Operational Optimization</h3>
             </div>
           </div>
 
@@ -293,7 +216,7 @@ export default function ImpactView({ route, trucks }: ImpactViewProps) {
               <div className="benefit-content">
                 <span className="benefit-title">Zero Midday Depot Interruptions</span>
                 <p className="benefit-desc">
-                  By cutting unnecessary travel by 37%, vehicles complete full daily shifts without depot return delays.
+                  By cutting unnecessary travel by ~{summary.distanceSavedPct}%, collection vehicles complete full shifts without mid-day depot return delays.
                 </p>
               </div>
             </div>
@@ -305,7 +228,7 @@ export default function ImpactView({ route, trucks }: ImpactViewProps) {
               <div className="benefit-content">
                 <span className="benefit-title">Payload-Aware Range Prediction</span>
                 <p className="benefit-desc">
-                  The routing engine accounts for vehicle weight increases as bins are loaded, maintaining safe return margins.
+                  The routing engine accounts for vehicle weight increases as bins are loaded, maintaining safe return margins under all scenarios.
                 </p>
               </div>
             </div>
@@ -315,9 +238,9 @@ export default function ImpactView({ route, trucks }: ImpactViewProps) {
                 <CheckCircle2 size={16} className="text-emerald-700" />
               </div>
               <div className="benefit-content">
-                <span className="benefit-title">Regenerative Kinetic Energy Maximization</span>
+                <span className="benefit-title">Localized Stop Clustering</span>
                 <p className="benefit-desc">
-                  Stop sequences are clustered in localized zones, optimizing kinetic energy capture during low-speed municipal pickups.
+                  Stop sequences are clustered geographically, reducing stop-and-go energy loss during urban municipal pickups.
                 </p>
               </div>
             </div>
@@ -330,7 +253,7 @@ export default function ImpactView({ route, trucks }: ImpactViewProps) {
         <div className="panel-header">
           <div className="panel-header-left">
             <TrendingUp size={16} className="text-emerald-700" />
-            <h3 className="panel-title">Comprehensive Operational Metric Registry (Simulated)</h3>
+            <h3 className="panel-title">Comprehensive Operational Metric Registry (Simulated Comparison)</h3>
           </div>
           <span className="panel-count">7 Operational Dimensions</span>
         </div>
