@@ -47,13 +47,15 @@ export default function Header({
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showOperatorMenu, setShowOperatorMenu] = useState(false);
 
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const notifContainerRef = useRef<HTMLDivElement>(null);
+  const operatorContainerRef = useRef<HTMLDivElement>(null);
 
   const currentPageTitle = PAGE_TITLES[activeNav] || 'Overview';
 
-  // Handle outside clicks to close dropdowns
+  // Handle outside clicks to close all dropdowns
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (
@@ -68,9 +70,28 @@ export default function Header({
       ) {
         setShowNotifications(false);
       }
+      if (
+        operatorContainerRef.current &&
+        !operatorContainerRef.current.contains(e.target as Node)
+      ) {
+        setShowOperatorMenu(false);
+      }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Escape key closes any open dropdown
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setIsSearchOpen(false);
+        setShowNotifications(false);
+        setShowOperatorMenu(false);
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   const searchResults = searchQuery.trim() === '' ? [] : [
@@ -118,8 +139,9 @@ export default function Header({
         )}
       </div>
 
-      {/* RIGHT: Compact Search + Subtle Status + Notification + Operator */}
+      {/* RIGHT: Compact Search + Status + Notifications + Operator */}
       <div className="header-right">
+
         {/* Compact Search */}
         <div className="header-search-container" ref={searchContainerRef}>
           <div className="header-search-box">
@@ -153,7 +175,7 @@ export default function Header({
             )}
           </div>
 
-          {/* Compact Search Results Dropdown */}
+          {/* Search Results Dropdown */}
           {isSearchOpen && searchResults.length > 0 && (
             <div className="search-results-dropdown">
               <div className="search-dropdown-header">Quick Results</div>
@@ -188,7 +210,7 @@ export default function Header({
           )}
         </div>
 
-        {/* Subtle System Status Indicator (Not a giant pill) */}
+        {/* System Status Indicator */}
         <div
           className={`header-status-indicator ${
             activeScenario === 'normal' ? 'status-normal' : 'status-scenario'
@@ -205,7 +227,7 @@ export default function Header({
           </span>
         </div>
 
-        {/* Compact Notification Icon */}
+        {/* Notification Bell */}
         <div className="header-action-wrapper" ref={notifContainerRef}>
           <button
             type="button"
@@ -259,16 +281,111 @@ export default function Header({
           )}
         </div>
 
-        {/* Compact Operator Profile */}
-        <div className="header-operator" title="Current Operator">
-          <div className="operator-avatar">
-            <User size={14} />
-          </div>
-          <div className="operator-details">
-            <span className="operator-name">Sarah Miller</span>
-            <span className="operator-role">Dispatcher</span>
-          </div>
+        {/* ── Operator Profile Control ── */}
+        <div className="header-operator-wrapper" ref={operatorContainerRef}>
+          <button
+            type="button"
+            className={`header-operator${showOperatorMenu ? ' operator-active' : ''}`}
+            onClick={() => setShowOperatorMenu(prev => !prev)}
+            aria-haspopup="true"
+            aria-expanded={showOperatorMenu}
+            aria-label="Open operator profile menu"
+            id="operator-profile-btn"
+          >
+            <div className="operator-avatar">
+              <User size={14} />
+            </div>
+            <div className="operator-details">
+              <span className="operator-name">Sarah Miller</span>
+              <span className="operator-role">Dispatcher</span>
+            </div>
+            {/* Animated chevron */}
+            <svg
+              className={`operator-chevron${showOperatorMenu ? ' chevron-open' : ''}`}
+              width="12"
+              height="12"
+              viewBox="0 0 12 12"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M2.5 4.5L6 8L9.5 4.5"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+
+          {/* Operator Dropdown */}
+          {showOperatorMenu && (
+            <div
+              className="operator-dropdown"
+              role="menu"
+              aria-label="Operator menu"
+            >
+              {/* Identity block */}
+              <div className="operator-dropdown-identity">
+                <div className="operator-dropdown-avatar">
+                  <User size={18} />
+                </div>
+                <div className="operator-dropdown-id-text">
+                  <span className="operator-dropdown-name">Sarah Miller</span>
+                  <span className="operator-dropdown-role">Dispatcher</span>
+                </div>
+              </div>
+
+              <div className="operator-dropdown-divider" />
+
+              {/* Menu items */}
+              <div className="operator-dropdown-section">
+                <button
+                  type="button"
+                  className="operator-dropdown-item"
+                  role="menuitem"
+                  onClick={() => setShowOperatorMenu(false)}
+                >
+                  {/* Person icon */}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" strokeWidth="2"
+                    strokeLinecap="round" strokeLinejoin="round"
+                    aria-hidden="true">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                  </svg>
+                  Profile
+                </button>
+
+                <button
+                  type="button"
+                  className="operator-dropdown-item"
+                  role="menuitem"
+                  onClick={() => setShowOperatorMenu(false)}
+                >
+                  {/* Settings icon */}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" strokeWidth="2"
+                    strokeLinecap="round" strokeLinejoin="round"
+                    aria-hidden="true">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                  </svg>
+                  Preferences
+                </button>
+              </div>
+
+              <div className="operator-dropdown-divider" />
+
+              {/* Demo session badge */}
+              <div className="operator-dropdown-demo">
+                <span className="operator-demo-dot" />
+                Demo Session
+              </div>
+            </div>
+          )}
         </div>
+
       </div>
     </header>
   );
